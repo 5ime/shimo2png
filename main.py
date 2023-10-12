@@ -1,67 +1,65 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 # @author: iami233
-# @date: 2022-03-15
-# @version: 1.0
-# @description: 将石墨文档md文件中的base64图片转换为png图片
+# @date: 2023-10-12
+# @version: 1.1
+# @description: Convert base64 images in a Markdown file to PNG images
 
 import re
 import os
 import sys
 import base64
+import argparse
 
-fileName = sys.argv[1]
-dirName = fileName.split('.')[0]
-imgList = []
-
-def readFile(fileName):
+def read_base64_images(filename):
+    img_list = []
     try:
-        with open(fileName,'r',encoding='utf8') as fin:
-
-            for line in fin.readlines():
-                line = line.strip('\n')
-                data = re.findall(r'base64,(.*)\)',line)
+        with open(filename, 'r', encoding='utf8') as fin:
+            for line in fin:
+                data = re.findall(r'base64,(.*)\)', line)
                 if data:
-                    imgList.append(data[0])
-                else:
-                    continue
-        return imgList
+                    img_list.append(data[0])
+        return img_list
     except IOError as err:
-        print("File Error:"+str(err))
+        print(f"File Error: {err}")
 
-def downloadImg(imgList,dirName):
+def download_images(img_list, directory):
     try:
-        os.mkdir(dirName)
-        os.chdir(dirName)
-        for i in range(len(imgList)):
-            with open(str(i)+'.png','wb') as fout:
-                fout.write(base64.b64decode(imgList[i]))
+        if not os.path.exists(directory):
+            os.mkdir(directory)
+        os.chdir(directory)
+        for i, img_data in enumerate(img_list):
+            with open(f'{i}.png', 'wb') as fout:
+                fout.write(base64.b64decode(img_data))
         print("Download Success!")
         os.chdir('..')
-    except:
-        pass
+    except Exception as e:
+        print(f"Download Error: {e}")
 
-def writeFile(fileName,dirName):
-    num = 0
+
+def update_markdown_file(filename, directory):
     try:
-        with open(fileName,'r',encoding='utf8') as fin:
-            try:
-                with open('new.md','w',encoding='utf8') as fout:
-                    for line in fin.readlines():
-                        line = line.strip('\n')
-                        data = re.findall(r'base64,(.*)\)',line)
-                        if data:
-                            line = re.sub(r'!\[(.*?)\]\((.*?)\)','!['+ str(num) +'](./'+ dirName +'/'+ str(num) +'.png)',line)
-                            num += 1
-                        fout.write(line+'\n')
-                print("Write Success!")
-            except IOError as err:
-                print("File Error:"+str(err))
-        os.rename(fileName,fileName+'.bak')
-        os.rename('new.md',fileName)
-    except:
-        pass
-        
+        num = 0
+        with open(filename, 'r', encoding='utf8') as fin, open('new.md', 'w', encoding='utf8') as fout:
+            for line in fin:
+                data = re.findall(r'base64,(.*)\)', line)
+                if data:
+                    line = re.sub(r'!\[(.*?)\]\((.*?)\)', f'![{num}](./{directory}/{num}.png)', line)
+                    num += 1
+                fout.write(line)
+        print("Write Success!")
+        os.rename(filename, f"{filename}.bak")
+        os.rename('new.md', filename)
+    except Exception as e:
+        print(f"Write Error: {e}")
+
 if __name__ == '__main__':
-    downloadImg(readFile(fileName),dirName)
-    writeFile(fileName, dirName)
+    parser = argparse.ArgumentParser(description='Convert base64 images in a Markdown file to PNG images.')
+    parser.add_argument('file', help='Input Markdown file')
+    args = parser.parse_args()
+    input_filename = args.file
+    directory_name = 'images'
+
+    img_list = read_base64_images(input_filename)
+    download_images(img_list, directory_name)
+    update_markdown_file(input_filename, directory_name)
